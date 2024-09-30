@@ -15,7 +15,7 @@ O **QBank** é uma aplicação financeira moderna, desenvolvida para facilitar o
 - **Ryan Henrique do Nascimento Santos** - https://github.com/ryanhnsantos
 - **Guilherme Menezes Euzebio** - https://github.com/GuiMenezes17
 - **Lucas Lima de Souza** - https://github.com/Limazfps
-- **Marcelo Diogo** - https://github.com/Marcelos161/Qbank
+- **Marcelo Diogo** - https://github.com/Marcelos161/
 
 ## Tecnologias Utilizadas
 - **ASP.NET Core (C#)**
