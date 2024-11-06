@@ -1,0 +1,11 @@
+{
+  "Version": 1,
+  "Hash": "HCR40MaNz1gXmYg9VON+STjN0ocggZsBzRejR5uRqv0=",
+  "Source": "QbankApi",
+  "BasePath": "_content/QbankApi",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}
