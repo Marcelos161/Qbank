@@ -3,9 +3,11 @@ using Microsoft.EntityFrameworkCore;
 using QBankApi.Data;
 using QBankApi.Models;
 using QBankApi.DTOs;
+using Microsoft.AspNetCore.Authorization;
 
 namespace QBankApi.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class ClienteController : ControllerBase
@@ -51,25 +53,6 @@ namespace QBankApi.Controllers
             };
 
             return Ok(clienteDTO);
-        }
-
-        [HttpPost]
-        public async Task<ActionResult<ClienteDTO>> CreateCliente(ClienteDTO clienteDTO)
-        {
-            var cliente = new Cliente
-            {
-                Nome = clienteDTO.Nome,
-                CPF = clienteDTO.CPF,
-                DataNascimento = clienteDTO.DataNascimento,
-                Endereco = clienteDTO.Endereco
-            };
-
-            _context.Clientes.Add(cliente);
-            await _context.SaveChangesAsync();
-
-            clienteDTO.ClienteID = cliente.ClienteID;
-
-            return CreatedAtAction(nameof(GetCliente), new { id = cliente.ClienteID }, clienteDTO);
         }
 
         [HttpPut("{id}")]

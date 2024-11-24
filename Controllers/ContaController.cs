@@ -21,37 +21,85 @@ namespace QBankApi.Controllers
         public async Task<ActionResult<IEnumerable<ContaDTO>>> GetContas()
         {
             var contas = await _context.Contas
-                .Select(c => new ContaDTO
-                {
-                    ContaID = c.ContaID,
-                    NumeroConta = c.NumeroConta,
-                    Saldo = c.Saldo,
-                    Tipo = c.Tipo,
-                    ClienteID = c.ClienteID
-                })
+                .Include(c => c.TransacoesOrigem) // Carrega as transações de origem
+                .Include(c => c.TransacoesDestino) // Carrega as transações de destino
+                .AsNoTracking() // Opcional para melhorar desempenho em leitura
                 .ToListAsync();
 
-            return Ok(contas);
+            var resultado = contas.Select(c => new ContaDTO
+            {
+                ContaID = c.ContaID,
+                NumeroConta = c.NumeroConta,
+                Saldo = c.Saldo,
+                Tipo = c.Tipo,
+                ClienteID = c.ClienteID,
+                TransacoesOrigem = c.TransacoesOrigem?.Select(t => new TransacaoDTO
+                {
+                    TransacaoID = t.TransacaoID,
+                    Data = t.Data,
+                    Valor = t.Valor,
+                    Tipo = t.Tipo,
+                    ContaOrigemID = t.ContaOrigemID,
+                    ContaDestinoID = t.ContaDestinoID
+                }).ToList(),
+                TransacoesDestino = c.TransacoesDestino?.Select(t => new TransacaoDTO
+                {
+                    TransacaoID = t.TransacaoID,
+                    Data = t.Data,
+                    Valor = t.Valor,
+                    Tipo = t.Tipo,
+                    ContaOrigemID = t.ContaOrigemID,
+                    ContaDestinoID = t.ContaDestinoID
+                }).ToList()
+            });
+
+            return Ok(resultado);
         }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<ContaDTO>> GetConta(int id)
         {
-            var conta = await _context.Contas.FindAsync(id);
-            if (conta == null)
-                return NotFound();
+        var conta = await _context.Contas
+            .Include(c => c.TransacoesOrigem)   // Carrega as transações de origem
+            .Include(c => c.TransacoesDestino)  // Carrega as transações de destino
+            .AsNoTracking()                     // Melhor para leitura, pois evita rastreamento de mudanças
+            .FirstOrDefaultAsync(c => c.ContaID == id); // Busca a conta com o ID especificado
 
-            var contaDTO = new ContaDTO
+        if (conta == null)
+            return NotFound();
+
+        var contaDTO = new ContaDTO
+        {
+            ContaID = conta.ContaID,
+            NumeroConta = conta.NumeroConta,
+            Saldo = conta.Saldo,
+            Tipo = conta.Tipo,
+            ClienteID = conta.ClienteID,
+            // Transações de origem
+            TransacoesOrigem = conta.TransacoesOrigem?.Select(t => new TransacaoDTO
             {
-                ContaID = conta.ContaID,
-                NumeroConta = conta.NumeroConta,
-                Saldo = conta.Saldo,
-                Tipo = conta.Tipo,
-                ClienteID = conta.ClienteID
-            };
+                TransacaoID = t.TransacaoID,
+                Data = t.Data,
+                Valor = t.Valor,
+                Tipo = t.Tipo,
+                ContaOrigemID = t.ContaOrigemID,
+                ContaDestinoID = t.ContaDestinoID
+            }).ToList(),
+            // Transações de destino
+            TransacoesDestino = conta.TransacoesDestino?.Select(t => new TransacaoDTO
+            {
+                TransacaoID = t.TransacaoID,
+                Data = t.Data,
+                Valor = t.Valor,
+                Tipo = t.Tipo,
+                ContaOrigemID = t.ContaOrigemID,
+                ContaDestinoID = t.ContaDestinoID
+            }).ToList()
+        };
 
-            return Ok(contaDTO);
+        return Ok(contaDTO);
         }
+
 
         [HttpPost]
         public async Task<ActionResult<ContaDTO>> CreateConta(ContaDTO contaDTO)

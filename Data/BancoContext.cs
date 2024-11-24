@@ -14,7 +14,7 @@ namespace QBankApi.Data
         public DbSet<Emprestimo> Emprestimos { get; set; }
         public DbSet<CartaoCredito> CartoesCredito { get; set; }
         public DbSet<Pagamento> Pagamentos { get; set; }
-
+        
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Cliente>().ToTable("Cliente");
@@ -60,7 +60,7 @@ namespace QBankApi.Data
                 .HasMany(s => s.Pagamentos)
                 .WithOne(p => p.Servico)
                 .HasForeignKey(p => p.ServicoID); // Assumindo que Pagamento tem uma propriedade ServicoID
-
+                
             base.OnModelCreating(modelBuilder);
         }
     }

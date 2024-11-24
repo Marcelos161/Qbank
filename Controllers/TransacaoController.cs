@@ -58,6 +58,22 @@ namespace QBankApi.Controllers
         [HttpPost]
         public async Task<ActionResult<TransacaoDTO>> CreateTransacao(TransacaoDTO transacaoDTO)
         {
+            // Recupera as contas de origem e destino do banco de dados
+            var contaOrigem = await _context.Contas
+                .FirstOrDefaultAsync(c => c.ContaID == transacaoDTO.ContaOrigemID);
+
+            if (contaOrigem == null)
+            {
+                return NotFound("Conta de origem não encontrada.");
+            }
+
+            // Verifica se o saldo da conta de origem é suficiente
+            if (contaOrigem.Saldo < transacaoDTO.Valor)
+            {
+                return BadRequest("Saldo insuficiente na conta de origem.");
+            }
+
+            // Caso a conta de origem tenha saldo suficiente, cria a transação
             var transacao = new Transacao
             {
                 Data = transacaoDTO.Data,
@@ -67,13 +83,33 @@ namespace QBankApi.Controllers
                 ContaDestinoID = transacaoDTO.ContaDestinoID
             };
 
+            // Atualiza o saldo da conta de origem
+            contaOrigem.Saldo -= transacaoDTO.Valor;
+
+            // Se a transação for de débito, você pode atualizar o saldo da conta destino também, se necessário
+            if (transacao.Tipo == "Credito") // Exemplo, caso o tipo de transação seja de crédito
+            {
+                var contaDestino = await _context.Contas
+                    .FirstOrDefaultAsync(c => c.ContaID == transacaoDTO.ContaDestinoID);
+
+                if (contaDestino == null)
+                {
+                    return NotFound("Conta de destino não encontrada.");
+                }
+
+                contaDestino.Saldo += transacaoDTO.Valor;
+            }
+
+            // Adiciona a transação ao contexto e salva as alterações
             _context.Transacoes.Add(transacao);
             await _context.SaveChangesAsync();
 
+            // Define o ID da transação no DTO
             transacaoDTO.TransacaoID = transacao.TransacaoID;
 
             return CreatedAtAction(nameof(GetTransacao), new { id = transacao.TransacaoID }, transacaoDTO);
         }
+
 
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateTransacao(int id, TransacaoDTO transacaoDTO)

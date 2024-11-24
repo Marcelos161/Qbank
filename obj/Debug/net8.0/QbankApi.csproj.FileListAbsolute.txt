@@ -141,3 +141,5 @@ C:\Users\Marcelo Teixeira\Documents\faculdade\Qbank final\QbankApi\obj\Debug\net
 C:\Users\Marcelo Teixeira\Documents\faculdade\Qbank final\QbankApi\obj\Debug\net8.0\QbankApi.pdb
 C:\Users\Marcelo Teixeira\Documents\faculdade\Qbank final\QbankApi\obj\Debug\net8.0\QbankApi.genruntimeconfig.cache
 C:\Users\Marcelo Teixeira\Documents\faculdade\Qbank final\QbankApi\obj\Debug\net8.0\ref\QbankApi.dll
+C:\Users\Marcelo Teixeira\Documents\faculdade\Qbank final\QbankApi\obj\Debug\net8.0\QbankApi.sourcelink.json
+C:\Users\Marcelo Teixeira\Documents\faculdade\Qbank final\QbankApi\bin\Debug\net8.0\BCrypt.Net-Next.dll
