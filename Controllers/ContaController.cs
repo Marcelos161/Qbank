@@ -3,37 +3,66 @@ using Microsoft.EntityFrameworkCore;
 using QBankApi.Data;
 using QBankApi.Models;
 using QBankApi.DTOs;
+using Microsoft.AspNetCore.Authorization;
 
 namespace QBankApi.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class ContaController : ControllerBase
     {
         private readonly BancoContext _context;
+        private readonly ILogger<ContaController> _logger;
 
-        public ContaController(BancoContext context)
+        public ContaController(BancoContext context, ILogger<ContaController> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<ContaDTO>>> GetContas()
+        public async Task<ActionResult<ContaDTO>> GetConta()
         {
-            var contas = await _context.Contas
-                .Include(c => c.TransacoesOrigem) // Carrega as transações de origem
-                .Include(c => c.TransacoesDestino) // Carrega as transações de destino
-                .AsNoTracking() // Opcional para melhorar desempenho em leitura
-                .ToListAsync();
-
-            var resultado = contas.Select(c => new ContaDTO
+            _logger.LogInformation("Iniciando a execução de GetConta Usando token");
+            // Extrai o ClienteID das claims do token JWT
+            var clienteIdClaim = User.Claims.FirstOrDefault(c => c.Type == "ClienteID");
+            if (clienteIdClaim == null)
             {
-                ContaID = c.ContaID,
-                NumeroConta = c.NumeroConta,
-                Saldo = c.Saldo,
-                Tipo = c.Tipo,
-                ClienteID = c.ClienteID,
-                TransacoesOrigem = c.TransacoesOrigem?.Select(t => new TransacaoDTO
+                _logger.LogWarning("Token inválido ou ClienteID ausente.");
+                return Unauthorized("Token inválido ou ClienteID ausente.");
+            }
+
+            // Converte o ClienteID para um número inteiro
+            int clienteId;
+            if (!int.TryParse(clienteIdClaim.Value, out clienteId))
+            {
+                _logger.LogWarning("Cliente ID encontrado no token invalido");
+                return Unauthorized("ClienteID inválido no token.");
+            }
+
+            // Busca a conta vinculada ao ClienteID
+            var conta = await _context.Contas
+                .Include(c => c.TransacoesOrigem) // Inclui as transações de origem
+                .Include(c => c.TransacoesDestino) // Inclui as transações de destino
+                .AsNoTracking() // Melhora o desempenho, desabilitando o rastreamento
+                .FirstOrDefaultAsync(c => c.ClienteID == clienteId);
+
+            if (conta == null)
+            {
+                _logger.LogWarning("conta nao encontrada");
+                return NotFound("Conta não encontrada para este cliente.");
+            }
+
+            // Mapeia a conta para o DTO
+            var contaDTO = new ContaDTO
+            {
+                ContaID = conta.ContaID,
+                NumeroConta = conta.NumeroConta,
+                Saldo = conta.Saldo,
+                Tipo = conta.Tipo,
+                ClienteID = conta.ClienteID,
+                TransacoesOrigem = conta.TransacoesOrigem?.Select(t => new TransacaoDTO
                 {
                     TransacaoID = t.TransacaoID,
                     Data = t.Data,
@@ -42,7 +71,7 @@ namespace QBankApi.Controllers
                     ContaOrigemID = t.ContaOrigemID,
                     ContaDestinoID = t.ContaDestinoID
                 }).ToList(),
-                TransacoesDestino = c.TransacoesDestino?.Select(t => new TransacaoDTO
+                TransacoesDestino = conta.TransacoesDestino?.Select(t => new TransacaoDTO
                 {
                     TransacaoID = t.TransacaoID,
                     Data = t.Data,
@@ -51,53 +80,9 @@ namespace QBankApi.Controllers
                     ContaOrigemID = t.ContaOrigemID,
                     ContaDestinoID = t.ContaDestinoID
                 }).ToList()
-            });
+            };
 
-            return Ok(resultado);
-        }
-
-        [HttpGet("{id}")]
-        public async Task<ActionResult<ContaDTO>> GetConta(int id)
-        {
-        var conta = await _context.Contas
-            .Include(c => c.TransacoesOrigem)   // Carrega as transações de origem
-            .Include(c => c.TransacoesDestino)  // Carrega as transações de destino
-            .AsNoTracking()                     // Melhor para leitura, pois evita rastreamento de mudanças
-            .FirstOrDefaultAsync(c => c.ContaID == id); // Busca a conta com o ID especificado
-
-        if (conta == null)
-            return NotFound();
-
-        var contaDTO = new ContaDTO
-        {
-            ContaID = conta.ContaID,
-            NumeroConta = conta.NumeroConta,
-            Saldo = conta.Saldo,
-            Tipo = conta.Tipo,
-            ClienteID = conta.ClienteID,
-            // Transações de origem
-            TransacoesOrigem = conta.TransacoesOrigem?.Select(t => new TransacaoDTO
-            {
-                TransacaoID = t.TransacaoID,
-                Data = t.Data,
-                Valor = t.Valor,
-                Tipo = t.Tipo,
-                ContaOrigemID = t.ContaOrigemID,
-                ContaDestinoID = t.ContaDestinoID
-            }).ToList(),
-            // Transações de destino
-            TransacoesDestino = conta.TransacoesDestino?.Select(t => new TransacaoDTO
-            {
-                TransacaoID = t.TransacaoID,
-                Data = t.Data,
-                Valor = t.Valor,
-                Tipo = t.Tipo,
-                ContaOrigemID = t.ContaOrigemID,
-                ContaDestinoID = t.ContaDestinoID
-            }).ToList()
-        };
-
-        return Ok(contaDTO);
+            return Ok(contaDTO);
         }
 
 
