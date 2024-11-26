@@ -39,7 +39,7 @@ public class AuthController : ControllerBase
         // Retorna os dados do usuário com o token
         var response = new LoginResponseDTO
         {
-            Id = cliente.ClienteID,
+            ClienteID = cliente.ClienteID,
             Nome = cliente.Nome,
             Token = token
         };
@@ -57,7 +57,7 @@ public class AuthController : ControllerBase
         {
             new Claim(JwtRegisteredClaimNames.Sub, cliente.CPF),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new Claim("ClienteId", cliente.ClienteID.ToString())
+            new Claim("ClienteID", cliente.ClienteID.ToString())
         };
 
         var token = new JwtSecurityToken(
