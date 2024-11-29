@@ -22,9 +22,10 @@ namespace QBankApi.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<ContaDTO>> GetConta()
+        public async Task<ActionResult<IEnumerable<ContaDTO>>> GetContas()
         {
-            _logger.LogInformation("Iniciando a execução de GetConta Usando token");
+            _logger.LogInformation("Iniciando a execução de GetContas usando token");
+
             // Extrai o ClienteID das claims do token JWT
             var clienteIdClaim = User.Claims.FirstOrDefault(c => c.Type == "ClienteID");
             if (clienteIdClaim == null)
@@ -34,24 +35,67 @@ namespace QBankApi.Controllers
             }
 
             // Converte o ClienteID para um número inteiro
-            int clienteId;
-            if (!int.TryParse(clienteIdClaim.Value, out clienteId))
+            if (!int.TryParse(clienteIdClaim.Value, out int clienteId))
             {
-                _logger.LogWarning("Cliente ID encontrado no token invalido");
+                _logger.LogWarning("Cliente ID encontrado no token é inválido.");
                 return Unauthorized("ClienteID inválido no token.");
             }
 
-            // Busca a conta vinculada ao ClienteID
+            // Busca todas as contas vinculadas ao ClienteID
+            var contas = await _context.Contas
+                .Where(c => c.ClienteID == clienteId)
+                .AsNoTracking() // Melhora o desempenho, desabilitando o rastreamento
+                .ToListAsync();
+
+            if (contas == null || !contas.Any())
+            {
+                _logger.LogWarning("Nenhuma conta encontrada para o ClienteID: {ClienteID}", clienteId);
+                return NotFound("Nenhuma conta encontrada para este cliente.");
+            }
+
+            // Mapeia as contas para uma lista de DTOs
+            var contasDTO = contas.Select(conta => new ContaDTO
+            {
+                ContaID = conta.ContaID,
+                NumeroConta = conta.NumeroConta,
+                Tipo = conta.Tipo,
+            }).ToList();
+
+            return Ok(contasDTO);
+        }
+
+
+        [HttpGet("{id}")]
+        public async Task<ActionResult<ContaDTO>> GetConta(int id)
+        {
+            _logger.LogInformation("Iniciando a execução de GetConta usando token");
+
+            // Extrai o ClienteID das claims do token JWT
+            var clienteIdClaim = User.Claims.FirstOrDefault(c => c.Type == "ClienteID");
+            if (clienteIdClaim == null)
+            {
+                _logger.LogWarning("Token inválido ou ClienteID ausente.");
+                return Unauthorized("Token inválido ou ClienteID ausente.");
+            }
+
+            // Converte o ClienteID para um número inteiro
+            if (!int.TryParse(clienteIdClaim.Value, out int clienteId))
+            {
+                _logger.LogWarning("ClienteID encontrado no token é inválido.");
+                return Unauthorized("ClienteID inválido no token.");
+            }
+
+            // Busca a conta pelo ID e valida o ClienteID
             var conta = await _context.Contas
                 .Include(c => c.TransacoesOrigem) // Inclui as transações de origem
                 .Include(c => c.TransacoesDestino) // Inclui as transações de destino
                 .AsNoTracking() // Melhora o desempenho, desabilitando o rastreamento
-                .FirstOrDefaultAsync(c => c.ClienteID == clienteId);
+                .FirstOrDefaultAsync(c => c.ContaID == id && c.ClienteID == clienteId);
 
             if (conta == null)
             {
-                _logger.LogWarning("conta nao encontrada");
-                return NotFound("Conta não encontrada para este cliente.");
+                _logger.LogWarning("Conta não encontrada ou não pertence ao ClienteID: {ClienteID}", clienteId);
+                return NotFound("Conta não encontrada ou não associada a este cliente.");
             }
 
             // Mapeia a conta para o DTO
@@ -89,12 +133,27 @@ namespace QBankApi.Controllers
         [HttpPost]
         public async Task<ActionResult<ContaDTO>> CreateConta(ContaDTO contaDTO)
         {
+            var clienteIdClaim = User.Claims.FirstOrDefault(c => c.Type == "ClienteID");
+            if (clienteIdClaim == null)
+            {
+                _logger.LogWarning("Token inválido ou ClienteID ausente.");
+                return Unauthorized("Token inválido ou ClienteID ausente.");
+            }
+
+            // Converte o ClienteID para um número inteiro
+            int clienteId;
+            if (!int.TryParse(clienteIdClaim.Value, out clienteId))
+            {
+                _logger.LogWarning("Cliente ID encontrado no token inválido: {ClienteId}", clienteIdClaim.Value);
+                return Unauthorized("ClienteID inválido no token.");
+            }
+                _logger.LogWarning("Cliente ID encontrado no token inválido: {ClienteId}", clienteIdClaim.Value);
             var conta = new Conta
             {
                 NumeroConta = contaDTO.NumeroConta,
                 Saldo = contaDTO.Saldo,
                 Tipo = contaDTO.Tipo,
-                ClienteID = contaDTO.ClienteID
+                ClienteID = clienteId
             };
 
             _context.Contas.Add(conta);

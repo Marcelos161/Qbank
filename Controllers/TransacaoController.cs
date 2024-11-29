@@ -3,9 +3,11 @@ using Microsoft.EntityFrameworkCore;
 using QBankApi.Data;
 using QBankApi.Models;
 using QBankApi.DTOs;
+using Microsoft.AspNetCore.Authorization;
 
 namespace QBankApi.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class TransacaoController : ControllerBase
@@ -58,13 +60,31 @@ namespace QBankApi.Controllers
         [HttpPost]
         public async Task<ActionResult<TransacaoDTO>> CreateTransacao(TransacaoDTO transacaoDTO)
         {
-            // Recupera as contas de origem e destino do banco de dados
+            // Recupera o ClienteID do token JWT
+            var clienteIdClaim = User.Claims.FirstOrDefault(c => c.Type == "ClienteID");
+            if (clienteIdClaim == null)
+            {
+                return Unauthorized("Token inválido ou ClienteID ausente.");
+            }
+
+            if (!int.TryParse(clienteIdClaim.Value, out int clienteId))
+            {
+                return Unauthorized("ClienteID inválido no token.");
+            }
+
+            // Recupera a conta de origem do banco de dados
             var contaOrigem = await _context.Contas
                 .FirstOrDefaultAsync(c => c.ContaID == transacaoDTO.ContaOrigemID);
 
             if (contaOrigem == null)
             {
                 return NotFound("Conta de origem não encontrada.");
+            }
+
+            // Verifica se a conta de origem pertence ao cliente do token
+            if (contaOrigem.ClienteID != clienteId)
+            {
+                return Unauthorized("A conta de origem não pertence ao cliente autenticado.");
             }
 
             // Verifica se o saldo da conta de origem é suficiente
@@ -86,8 +106,8 @@ namespace QBankApi.Controllers
             // Atualiza o saldo da conta de origem
             contaOrigem.Saldo -= transacaoDTO.Valor;
 
-            // Se a transação for de débito, você pode atualizar o saldo da conta destino também, se necessário
-            if (transacao.Tipo == "Credito") // Exemplo, caso o tipo de transação seja de crédito
+            // Se a transação for de crédito, atualiza o saldo da conta destino também
+            if (transacao.Tipo == "Credito")
             {
                 var contaDestino = await _context.Contas
                     .FirstOrDefaultAsync(c => c.ContaID == transacaoDTO.ContaDestinoID);
@@ -109,6 +129,7 @@ namespace QBankApi.Controllers
 
             return CreatedAtAction(nameof(GetTransacao), new { id = transacao.TransacaoID }, transacaoDTO);
         }
+
 
 
         [HttpPut("{id}")]
